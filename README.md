@@ -8,7 +8,7 @@ Audio-visual authentication systems have historically relied on lip-voice tempor
 - **S2**: Real Face, Fake Voice
 - **S3**: Fake Face, Fake Voice (Fully Synthetic)
 
-We empirically showcase that out-of-the-box cross-attention models are highly susceptible to modern generative impersonation artifacts, resulting in a **100% Attack Success Rate** (False Accept Rate) across 300 test permutations.
+We established a dynamic Equal Error Rate (EER) threshold of **0.65** by evaluating a live Genuine distribution against 300 Zero-Effort Imposters. We empirically showcase that out-of-the-box cross-attention models are highly susceptible to modern generative impersonation artifacts. Specifically, **S2 attacks achieved a 100% Attack Success Rate**, perfectly overlapping the genuine validation matrices without requiring algorithmic modifications like White-Box adversarial gradients (FGSM) or Spatial Blurring natively.
 
 ## Structure
 ```
@@ -38,6 +38,7 @@ source biometric_env/bin/activate
 # Install dependencies  (Notice: Due to torch constraints, numpy must be < 2.0)
 pip install -r requirements.txt
 ```
+*Note: Our `requirements.txt` natively embeds the PyTorch `extra-index-url` pointing to `cu121`. This is strictly required to prevent fatal `libcudart.so` downgrades when resolving `facenet-pytorch` via pip.*
 
 ### 2. Dataset Setup
 1. Unzip your `FakeAVCeleb_v1.2` dataset directory into the root of this project.

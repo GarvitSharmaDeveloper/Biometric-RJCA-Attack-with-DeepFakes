@@ -1,7 +1,9 @@
+--extra-index-url https://download.pytorch.org/whl/cu121
+
 # Project Core
-torch>=2.2.2
-torchvision>=0.17.2
-torchaudio>=2.2.2
+torch>=2.5.1
+torchvision>=0.20.1
+torchaudio>=2.5.1
 
 # Data Processing & Analysis
 pandas>=2.0.0
@@ -14,7 +16,7 @@ scipy
 opencv-python
 moviepy>=2.0.0
 soundfile
-facenet-pytorch>=2.5.3
+facenet-pytorch>=2.6.0
 
 # Visualization & Notebooks
 matplotlib
