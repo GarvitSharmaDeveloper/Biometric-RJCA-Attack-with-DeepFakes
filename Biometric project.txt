@@ -1,0 +1,243 @@
+Project Documentation
+1) Project title
+Robust Audio-Visual Biometric Verification Under Modality-Specific Deepfakes using Uncertainty-Aware Fusion and Deepfake-Aware Decision Policies
+
+2) Why this topic matters
+Audio-visual biometrics (face + voice) is increasingly relevant for remote onboarding, secure video calls, customer support verification, and device re-auth. In practice, these systems face two big realities:
+Modalities fail asymmetrically (bad lighting vs noisy audio).
+Deepfakes can selectively target one modality (voice clone with real face, or face swap with real voice).
+Most fusion systems still behave as if “both signals are trustworthy,” which creates a clear research gap: fusion can become overconfident and accept attackers when one stream is manipulated.
+
+3) Where it is used
+eKYC / remote onboarding (banking, telecom, fintech): selfie video + spoken prompt
+Account recovery / call-center verification: voice + face on video chat
+Secure conferencing / impersonation defense: verify speaker identity in meetings
+Step-up authentication for high-risk actions (payments, password reset)
+
+4) Core research objectives
+Objective A — Build baselines
+Implement strong, publishable baselines for:
+Face-only verification
+Voice-only verification
+Fusion (score fusion + learned fusion + cross-attention style fusion)
+A strong fusion baseline to cite/replicate is the FG 2024 recursive joint cross-attention fusion approach.
+Objective B — Deepfake stress testing (your main addition)
+Systematically test these attacker scenarios:
+Fake video + real audio
+Real video + fake audio
+Both fake
+Cross-identity mismatch (face from ID A, voice from ID B)
+Use a multimodal deepfake dataset like FakeAVCeleb and a speech spoof/deepfake benchmark like ASVspoof 2021.
+Objective C — Find limitations and propose improvements
+Identify and quantify:
+Over-trust of corrupted modality
+Poor calibration under attack (high confidence when wrong)
+Failure under distribution shift (unseen generators, compression/noise)Then propose:
+Uncertainty/quality-aware fusion
+Deepfake-aware decision policy (accept/reject/step-up)
+Optional: “fusion + deepfake detection gate” (video deepfake detector like MINTIME; AV deepfake detector like AVFF) 
+
+System Design
+5) Architecture overview
+5.1 Enrollment
+Store one or more templates per user:
+Face template embedding(s)
+Voice/speaker template embedding(s)
+5.2 Verification (runtime)
+Inputs: short video clip (face frames) + audio segment.
+Branch 1 — Face verification
+Face detection + alignment
+Extract face embeddings per frame
+Aggregate embeddings (mean/attention pooling)
+Similarity score sfs_fsf vs enrolled template
+Branch 2 — Voice verification
+VAD + feature extraction
+Speaker embedding model
+Similarity score svs_vsv vs enrolled template
+Branch 3 — FusionStart with three fusion methods:
+Score fusion: s=αsf+(1−α)svs=\alpha s_f + (1-\alpha)s_vs=αsf +(1−α)sv 
+Learned fusion: logistic regression / small MLP over [sf,sv,qf,qv][s_f, s_v, q_f, q_v][sf ,sv ,qf ,qv ]
+Cross-attention fusion (research baseline): implement RJCA-style fusion from FG 2024 
+Optional “security gate”:
+Video deepfake detector (e.g., MINTIME) gives pdf,vp_{df,v}pdf,v 
+AV deepfake detector (e.g., AVFF) gives pdf,avp_{df,av}pdf,av 
+
+Data Plan
+6) Datasets
+6.1 Genuine audio-visual identity data
+VoxCeleb / VoxCeleb2 (audio-visual speaking face-tracks; widely used for AV identity work). Cite the official dataset page (recently maintained) if you want to avoid older primary papers.
+6.2 Deepfake test data
+FakeAVCeleb — multimodal deepfake dataset with fake audio, fake video, and both.
+6.3 Voice deepfake/spoof stress test
+ASVspoof 2021 — includes deepfake speech detection task and post-challenge releases.
+6.4 Optional benchmarking infrastructure
+DeepfakeBench — standardized deepfake detector evaluation framework (useful if you want to compare deepfake detectors fairly).
+
+Threat Model and Test Matrix
+7) Threat model
+Assume the attacker wants to pass verification as a target identity.
+Attack capabilities
+A1: Video deepfake (face swap/re-enactment)
+A2: Audio deepfake (voice cloning/conversion) or replay-style spoof
+A3: Combined A/V deepfake
+A4: Cross-identity mismatch (audio and face from different people)
+The key is you are not just “detecting deepfakes” — you’re testing biometric verification failure under deepfakes.
+
+8) Deepfake evaluation matrix (core experiments)
+Create a controlled substitution framework:
+
+Run all fusion baselines across all scenarios.
+
+How to Find Limitations (Research Method)
+9) Limitation discovery checklist (what you measure)
+9.1 Security failures
+False Accept Rate (FAR) under each attack scenario
+Attack Success Rate (ASR): % of attacked samples accepted
+9.2 Usability failures
+False Reject Rate (FRR) on genuine samples
+Retry/step-up frequency (if you implement step-up)
+9.3 Calibration failures (highly publishable)
+Measure whether fused confidence is meaningful:
+Expected Calibration Error (ECE)
+Reliability curvesDeep insight: many systems stay “accurate” yet become overconfident under manipulations.
+9.4 Generalization failures
+Train fusion on one set of fake types, test on unseen fakes (FakeAVCeleb splits)
+Add compression/noise sweeps:
+Video: bitrate/codec changes
+Audio: SNR sweep, reverberation
+
+Proposed Improvements
+10) Improvement 1: Uncertainty/quality-aware fusion (recommended main contribution)
+Instead of a fixed
+α
+\alpha
+α, learn weights from quality/uncertainty:
+Compute face quality qfq_fqf (blur/pose/occlusion; or embedding variance across frames)
+Compute voice quality qvq_vqv (SNR estimate, VAD confidence, embedding stability)
+Then:
+w
+f
+=
+g
+(
+q
+f
+)
+,
+
+w
+v
+=
+g
+(
+q
+v
+)
+w_f = g(q_f), \quad w_v = g(q_v)
+wf =g(qf ),wv =g(qv )
+s
+=
+w
+f
+s
+f
++
+w
+v
+s
+v
+w
+f
++
+w
+v
+s = \frac{w_f s_f + w_v s_v}{w_f + w_v}
+s=wf +wv wf sf +wv sv
+Why it’s publishable: it directly targets the core vulnerability: fusion trusting a manipulated/low-quality stream.
+
+11) Improvement 2: Deepfake-aware decision policy (“secure product logic”)
+Add a policy that uses:
+fused similarity score sss
+deepfake probability pdfp_{df}pdf (video or AV detector)
+quality measures qf,qvq_f,q_vqf ,qv 
+Policy outputs:
+ACCEPT if sss high and pdfp_{df}pdf low
+REJECT if pdfp_{df}pdf high (even if sss is high)
+STEP-UP / RETRY if low quality or ambiguous score
+For a strong video deepfake detector baseline, cite MINTIME (TIFS) and use its public paper/code artifacts. For an AV deepfake detector baseline, cite AVFF (2024).
+
+12) Improvement 3 (optional): Training-time “modality dropout + corruption”
+During fusion training:
+randomly drop audio or video
+randomly apply noise/compressionThis forces fusion not to assume “both are always reliable.”
+
+Implementation Blueprint
+13) Recommended tech stack
+PyTorch
+Face branch: any strong embedding model you can run reliably (pretrained is fine if your novelty is evaluation + fusion policy)
+Voice branch: a speaker embedding model (ECAPA-TDNN style is common)
+Fusion: score fusion + MLP + RJCA (FG 2024) 
+Deepfake testing:
+FakeAVCeleb dataset loader 
+ASVspoof 2021 loader 
+Optional: DeepfakeBench framework for detector comparisons 
+
+14) Repo / module structure (practical)
+/data
+voxceleb_loader.py (genuine AV)
+fakeavceleb_loader.py (fake audio/video/both) 
+asvspoof2021_loader.py (voice spoof/deepfake) 
+/models
+face_embedder.py
+voice_embedder.py
+fusion_score.py
+fusion_mlp.py
+fusion_rjca.py (FG 2024 baseline) 
+/attacks
+av_substitution.py (build S0–S4 scenarios)
+corruption.py (compression/noise sweeps)
+/deepfake_detectors (optional)
+mintime_wrapper.py 
+avff_wrapper.py 
+/eval
+metrics.py (EER/FAR/FRR/TPR@FPR)
+calibration.py (ECE, reliability)
+plots.py
+
+15) Step-by-step execution plan (process)
+Phase 1 — Baselines (Weeks 1–2)
+Build face-only, voice-only verification
+Implement score fusion and MLP fusion
+Establish clean baseline results on genuine data
+Phase 2 — Deepfake test harness (Weeks 3–4)
+Implement S0–S4 matrix using FakeAVCeleb + ASVspoof 2021
+Produce first “failure matrix” tables (FAR/ASR by scenario)
+Phase 3 — Limitation analysis (Weeks 5–6)
+Add compression/noise sweeps
+Add unseen-generator split tests
+Add calibration analysis (ECE + reliability)
+Phase 4 — Improvements (Weeks 7–9)
+Implement uncertainty/quality-aware fusion
+Add deepfake-aware policy gate (optionally MINTIME/AVFF)
+Phase 5 — Paper-grade evaluation (Weeks 10–12)
+Full ablations:
+which quality signals help most?
+what happens if only audio is spoofed vs only video is spoofed?
+policy thresholds trade-off curves (security vs usability)
+
+What your IEEE-style contributions can be
+A strong, defensible “Contributions” bullet list could be:
+A structured multimodal biometric threat evaluation with modality-specific deepfake substitution scenarios (S0–S4).
+Quantification of fusion failure modes: overconfidence, generalization gaps, and attack success under A/V deepfakes.
+A robust fusion strategy + deepfake-aware decision policy that reduces FAR/ASR under attacks with controlled usability cost.
+
+References (from this updated plan)
+Audio-Visual Person Verification based on Recursive Fusion of Joint Cross-Attention (IEEE FG 2024), DOI page + paper source. 
+RJCAforSpeakerVerification (official code repo for FG 2024 RJCA fusion baseline). 
+FakeAVCeleb: A Novel Audio-Video Multimodal Deepfake Dataset (NeurIPS 2021 Datasets & Benchmarks; paper + OpenReview + repo). 
+ASVspoof 2021: accelerating progress in spoofed and deepfake speech detection (paper + official site / post-challenge releases). 
+VoxCeleb dataset (official Oxford VGG dataset pages) (audio-visual speaking face tracks; VoxCeleb2 page). 
+DeepfakeBench: A Comprehensive Benchmark of Deepfake Detection (NeurIPS 2023 Datasets & Benchmarks; paper + GitHub). 
+AVFF: Audio-Visual Feature Fusion for Video Deepfake Detection (arXiv 2024). 
+MINTIME: Multi-Identity Size-Invariant Video Deepfake Detection (TIFS version shared on Zenodo; arXiv version; GitHub repo). 
+If you want, I can also output these references as IEEE BibTeX entries (ready to paste into Overleaf) and a paper outline (Introduction → Related Work → Threat Model → Method → Experiments → Ablations → Discussion) tailored to your exact fusion model choice.

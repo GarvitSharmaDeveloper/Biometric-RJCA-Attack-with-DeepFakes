@@ -1,0 +1,26 @@
+# Environments
+rjca_env/
+biometric_env/
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+
+# Datasets and Large Media
+FakeAVCeleb_v1.2/
+FakeAVCeleb_v1.2.zip
+processed_data/
+*.mp4
+*.wav
+*.avi
+
+# Heavy Model Checkpoints
+*.model
+*.pth
+*.pt
+
+# Documents/Binaries
+*.pdf
+*.docx
+*.pptx
+*.zip
+.DS_Store

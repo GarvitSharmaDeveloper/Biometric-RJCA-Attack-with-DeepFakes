@@ -1,0 +1,26 @@
+# Project Core
+torch>=2.2.2
+torchvision>=0.17.2
+torchaudio>=2.2.2
+
+# Data Processing & Analysis
+pandas>=2.0.0
+numpy<2.0.0
+scikit-learn
+tqdm
+scipy
+
+# Media Handling
+opencv-python
+moviepy>=2.0.0
+soundfile
+facenet-pytorch>=2.5.3
+
+# Visualization & Notebooks
+matplotlib
+seaborn
+jupyter
+notebook
+
+# Utilities
+gdown
