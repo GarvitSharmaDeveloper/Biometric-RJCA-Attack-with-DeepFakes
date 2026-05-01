@@ -1,9 +1,4 @@
---extra-index-url https://download.pytorch.org/whl/cu121
-
-# Project Core
-torch>=2.5.1
-torchvision>=0.20.1
-torchaudio>=2.5.1
+# Project Core (Relying on Colab's default CUDA-compatible PyTorch)
 
 # Data Processing & Analysis
 pandas>=2.0.0
